@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pagos QR — UNAP</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/jsqr@1.4.0/dist/jsQR.js';"></script>
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#273548;--border:#334155;--blue:#3b82f6;--blue-glow:#3b82f640;--green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--text:#f1f5f9;--muted:#94a3b8;--radius:14px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.header{background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:16px 20px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden}
+.header::after{content:'';position:absolute;right:-30px;top:-30px;width:120px;height:120px;background:#ffffff08;border-radius:50%}
+.header-icon{font-size:28px}
+.header h1{font-size:17px;font-weight:700}
+.header p{font-size:12px;color:#93c5fd;margin-top:1px}
+.header-gear{margin-left:auto;font-size:20px;cursor:pointer;background:none;border:none;color:#93c5fd;-webkit-tap-highlight-color:transparent}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.tab{flex:1;padding:12px 4px;text-align:center;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;letter-spacing:.5px;text-transform:uppercase;-webkit-tap-highlight-color:transparent}
+.tab .ico{font-size:20px}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.content{max-width:480px;margin:0 auto;padding:16px 12px 40px}
+.panel{display:none}
+.panel.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.scanner-shell{position:relative;width:100%;aspect-ratio:1/1;background:#000;border-radius:12px;overflow:hidden}
+#cam-video{width:100%;height:100%;object-fit:cover;display:none}
+.scanner-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+.scanner-overlay::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.5);clip-path:polygon(0% 0%,100% 0%,100% 100%,0% 100%,0% 20%,20% 20%,20% 80%,80% 80%,80% 20%,0% 20%)}
+.scanner-frame{position:absolute;width:60%;aspect-ratio:1/1}
+.corner{position:absolute;width:24px;height:24px;border-color:var(--blue);border-style:solid}
+.corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:6px 0 0 0}
+.corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 6px 0 0}
+.corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 6px}
+.corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 6px 0}
+.scan-line{position:absolute;left:5%;width:90%;height:2px;background:linear-gradient(90deg,transparent,var(--blue),transparent);box-shadow:0 0 12px var(--blue),0 0 24px var(--blue-glow);animation:scanAnim 2.2s ease-in-out infinite;top:5%}
+@keyframes scanAnim{0%,2%{top:5%}48%{top:95%}50%{top:95%;opacity:0}52%{top:5%;opacity:0}54%,100%{top:5%;opacity:1}}
+.cam-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);background:#080f1a}
+.cam-placeholder .ph-icon{font-size:52px;opacity:.35}
+.cam-placeholder p{font-size:13px;text-align:center;padding:0 24px;line-height:1.6}
+.scan-status{font-size:12px;color:var(--muted);text-align:center;padding:8px 4px;min-height:36px;line-height:1.5}
+.alt-method{margin-top:12px;border:1px dashed var(--border);border-radius:10px;padding:14px;background:var(--bg)}
+.alt-method-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.alt-desc{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;margin-top:10px;-webkit-tap-highlight-color:transparent}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-blue:active{background:#2563eb;transform:scale(.98)}
+.btn-green{background:#15803d;color:#fff}
+.btn-green:active{background:#166534;transform:scale(.98)}
+.btn-stop{background:var(--surface2);color:var(--red);border:1px solid #ef444440}
+.btn-stop:active{background:#2d1515}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:active{background:var(--border)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s;background:#080f1a;-webkit-tap-highlight-color:transparent}
+.upload-zone:active{border-color:var(--blue)}
+.upload-zone .uz-icon{font-size:40px;margin-bottom:8px}
+.upload-zone p{color:var(--muted);font-size:13px;line-height:1.7}
+#photo-preview-wrap{margin-top:12px;display:none;position:relative}
+#photo-preview-wrap img{width:100%;border-radius:10px;border:1px solid var(--border);display:block}
+.change-photo{position:absolute;top:8px;right:8px;background:#000a;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.field input{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:14px;font-family:'Space Mono',monospace;font-size:20px;color:var(--text);outline:none;transition:border .2s;letter-spacing:3px;-webkit-appearance:none}
+.field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+.stu-preview{display:none;border-radius:10px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,#14532d18,#0f172a);border:1px solid #22c55e30;border-left:4px solid var(--green)}
+.stu-preview.paid{background:linear-gradient(135deg,#78350f18,#0f172a);border-color:#f59e0b30;border-left-color:var(--yellow)}
+.stu-name{font-size:15px;font-weight:700}
+.stu-detail{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7}
+.stu-badge{display:inline-block;margin-top:8px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.stu-badge.ok{background:#14532d;color:#86efac}
+.stu-badge.warn{background:#78350f;color:#fcd34d}
+.result{display:none;border-radius:12px;padding:16px;margin-top:12px}
+.result.ok{background:#052e16;border:1px solid #166534}
+.result.warn{background:#1c1400;border:1px solid #92400e}
+.result.err{background:#1c0a0a;border:1px solid #7f1d1d}
+.r-title{font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.result.ok .r-title{color:var(--green)}
+.result.warn .r-title{color:var(--yellow)}
+.result.err .r-title{color:var(--red)}
+.r-body{font-size:13px;color:#94a3b8;line-height:1.85}
+.r-body b{color:var(--text)}
+.r-divider{border:none;border-top:1px solid var(--border);margin:10px 0}
+.loading-box{display:none;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:10px;margin-top:12px;color:var(--muted);font-size:13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.info-box{background:#1e293b;border:1px solid #334155;border-left:4px solid var(--blue);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px}
+.info-box b{color:var(--text)}
+.diag-box{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px;color:var(--muted);margin-top:10px;line-height:1.9;font-family:'Space Mono',monospace;word-break:break-all}
+.d-ok{color:#4ade80}.d-err{color:#f87171}.d-warn{color:#fbbf24}
+.top-banner{display:none;background:#7f1d1d;color:#fecaca;font-size:12px;padding:10px 16px;text-align:center;line-height:1.6;cursor:pointer}
+canvas{display:none}
+</style>
+</head>
+<body>
+
+<div class="top-banner" id="cfg-banner" onclick="configurarApiUrl()">
+  ⚙️ No hay URL de Apps Script configurada. Toca aquí para pegarla.
+</div>
+
+<div class="header">
+  <div class="header-icon">🎓</div>
+  <div>
+    <h1>Sistema de Pagos QR</h1>
+    <p>Verificación de pagos — UNAP Física</p>
+  </div>
+  <button class="header-gear" onclick="configurarApiUrl()" title="Configurar URL del servidor">⚙️</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab-scan"   onclick="switchTab('scan')">  <span class="ico">📷</span>Escanear</div>
+  <div class="tab"        id="tab-photo"  onclick="switchTab('photo')"> <span class="ico">🖼️</span>Foto QR</div>
+  <div class="tab"        id="tab-manual" onclick="switchTab('manual')"><span class="ico">⌨️</span>Manual</div>
+</div>
+
+<div class="content">
+
+<!-- TAB 1: ESCANEAR (en vivo, funciona de verdad porque esta página
+     NO está dentro de un iframe de Apps Script) -->
+<div id="panel-scan" class="panel active">
+  <div class="card">
+    <div class="card-title">📷 Escáner en Tiempo Real</div>
+    <div class="scanner-shell">
+      <div class="cam-placeholder" id="cam-ph">
+        <div class="ph-icon">📷</div>
+        <p>Pulsa <b>Iniciar Escáner</b><br>para activar la cámara</p>
+      </div>
+      <video id="cam-video" autoplay muted playsinline webkit-playsinline></video>
+      <div class="scanner-overlay" id="cam-overlay">
+        <div class="scanner-frame">
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+    </div>
+    <canvas id="cam-canvas"></canvas>
+    <div class="scan-status" id="scan-status">Listo para escanear</div>
+    <button class="btn btn-blue" id="btn-start" onclick="startCam()">📷 Iniciar Escáner</button>
+    <button class="btn btn-stop" id="btn-stop"  onclick="stopCam()" style="display:none">⏹ Detener Escáner</button>
+
+    <!-- Respaldo, por si algún celular específico bloquea igual el acceso en vivo -->
+    <div class="alt-method">
+      <div class="alt-method-title">📱 Si la cámara no abre — usa esto:</div>
+      <div class="alt-desc">Abre la <b>cámara nativa</b> de tu celular o elige una foto de la galería.</div>
+      <div class="btn-row">
+        <button class="btn btn-green" style="margin-top:0" onclick="triggerNativeCam()">📷 Cámara nativa</button>
+        <button class="btn btn-blue" style="margin-top:0" onclick="triggerNativeGal()">🖼️ Galería</button>
+      </div>
+      <input type="file" id="inp-native-cam" accept="image/*" capture="environment" style="display:none" onchange="handleNativeQR(event)">
+      <input type="file" id="inp-native-gal" accept="image/*"                        style="display:none" onchange="handleNativeQR(event)">
+    </div>
+
+    <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;padding:10px" onclick="runDiag()">🔧 Diagnóstico de cámara</button>
+    <div id="diag-out" class="diag-box" style="display:none"></div>
+  </div>
+  <div id="scan-load" class="loading-box"><div class="spinner"></div><span id="scan-load-txt">Registrando pago…</span></div>
+  <div id="scan-result" class="result"></div>
+</div>
+
+<!-- TAB 2: FOTO QR -->
+<div id="panel-photo" class="panel">
+  <div class="card">
+    <div class="card-title">🖼️ Verificar con Foto del QR</div>
+    <div class="info-box">📌 <b>Cómo usar:</b> Toma una foto del código QR del alumno o selecciónala desde tu galería. Luego pulsa <b>Leer QR y Registrar Pago</b>.</div>
+    <div id="upload-zone-wrap">
+      <div class="upload-zone" onclick="triggerGallery()">
+        <div class="uz-icon">🖼️</div>
+        <p>Toca aquí para seleccionar<br>una imagen desde la galería</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-blue" onclick="triggerCamera()">📷 Tomar foto</button>
+        <button class="btn btn-ghost" onclick="triggerGallery()">🖼️ Galería</button>
+      </div>
+      <input type="file" id="file-camera"  accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
+      <input type="file" id="file-gallery" accept="image/*"                        style="display:none" onchange="handlePhoto(event)">
+    </div>
+    <div id="photo-preview-wrap">
+      <img id="photo-img" alt="Vista previa QR">
+      <button class="change-photo" onclick="clearPhoto()">✕ Cambiar</button>
+    </div>
+    <button class="btn btn-blue" id="btn-decode" onclick="decodePhoto()" style="display:none">🔍 Leer QR y Registrar Pago</button>
+  </div>
+  <div id="photo-load" class="loading-box"><div class="spinner"></div><span>Analizando imagen QR…</span></div>
+  <div id="photo-result" class="result"></div>
+</div>
+
+<!-- TAB 3: MANUAL -->
+<div id="panel-manual" class="panel">
+  <div class="card">
+    <div class="card-title">⌨️ Registro Manual</div>
+    <div class="field">
+      <label>Código del estudiante</label>
+      <input type="number" id="manual-cod" inputmode="numeric" placeholder="Ej: 251087" autocomplete="off"
+             oninput="onManualInput()" onkeydown="if(event.key==='Enter')registrarManual()">
+    </div>
+    <div class="stu-preview" id="stu-prev"></div>
+    <button class="btn btn-blue" id="btn-reg" onclick="registrarManual()" disabled>✅ Confirmar Pago</button>
+  </div>
+  <div id="manual-load" class="loading-box"><div class="spinner"></div><span id="manual-load-txt">Registrando…</span></div>
+  <div id="manual-result" class="result"></div>
+</div>
+
+</div>
+<canvas id="photo-canvas"></canvas>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN: URL de tu Web App de Google Apps Script
+//  (la que termina en /exec). Se guarda en este navegador/celular
+//  con localStorage, así que solo la pides una vez.
+// ══════════════════════════════════════════════════════════════
+let API_URL = localStorage.getItem('appscript_api_url') || '';
+
+function isValidApiUrl(u){
+  return !!u && u.indexOf('script.google.com') >= 0 && u.indexOf('/exec') >= 0;
+}
+
+function configurarApiUrl(){
+  const actual = API_URL || '';
+  const nueva = prompt('Pega aquí la URL de tu Web App de Apps Script (debe terminar en /exec):', actual);
+  if(nueva === null) return;
+  const limpia = nueva.trim();
+  if(!isValidApiUrl(limpia)){
+    alert('Esa URL no parece válida. Debe contener "script.google.com" y terminar en "/exec".');
+    return;
+  }
+  API_URL = limpia;
+  localStorage.setItem('appscript_api_url', API_URL);
+  document.getElementById('cfg-banner').style.display='none';
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  if(!isValidApiUrl(API_URL)){
+    document.getElementById('cfg-banner').style.display='block';
+  }
+  setTimeout(()=>{
+    if(typeof jsQR==='undefined'){
+      const b=document.createElement('div');
+      b.className='top-banner';
+      b.style.display='block';
+      b.textContent='⚠️ No se pudo cargar la librería de lectura de QR (jsQR). Verifica tu conexión a internet.';
+      document.body.insertBefore(b, document.body.firstChild);
+    }
+  },1500);
+});
+
+// ── TABS ─────────────────────────────────────────────────────
+function switchTab(n){
+  ['scan','photo','manual'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('active',x===n);
+    document.getElementById('panel-'+x).classList.toggle('active',x===n);
+  });
+  if(n!=='scan')stopCam();
+}
+
+// ── DIAGNÓSTICO ──────────────────────────────────────────────
+async function runDiag(){
+  const box=document.getElementById('diag-out');
+  box.style.display='block'; box.innerHTML='⏳ Verificando…';
+  const L=[];
+  const ok=location.protocol==='https:'||location.hostname==='localhost';
+  L.push('Protocolo: <span class="'+(ok?'d-ok':'d-err')+'">'+location.protocol+' '+(ok?'✓ OK':'✗ Necesita HTTPS')+'</span>');
+  const inIframe = (window.self !== window.top);
+  L.push('Dentro de iframe: <span class="'+(inIframe?'d-warn':'d-ok')+'">'+(inIframe?'⚠️ Sí':'No ✓')+'</span>');
+  const gum=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+  L.push('getUserMedia: <span class="'+(gum?'d-ok':'d-err')+'">'+(gum?'✓ Disponible':'✗ No soportado')+'</span>');
+  if(navigator.permissions){
+    try{const p=await navigator.permissions.query({name:'camera'});L.push('Permiso cámara: <span class="'+(p.state==='granted'?'d-ok':p.state==='prompt'?'d-warn':'d-err')+'">'+p.state+'</span>');}
+    catch{L.push('Permiso cámara: <span class="d-warn">no consultable</span>');}
+  }
+  L.push('jsQR: <span class="'+(typeof jsQR!=='undefined'?'d-ok':'d-err')+'">'+(typeof jsQR!=='undefined'?'✓ Cargado':'✗ No cargado')+'</span>');
+  L.push('API configurada: <span class="'+(isValidApiUrl(API_URL)?'d-ok':'d-err')+'">'+(isValidApiUrl(API_URL)?'✓ Sí':'✗ No — toca ⚙️ arriba')+'</span>');
+  if(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices){
+    try{
+      const devs=await navigator.mediaDevices.enumerateDevices();
+      const cams=devs.filter(d=>d.kind==='videoinput');
+      L.push('Cámaras: <span class="'+(cams.length?'d-ok':'d-err')+'">'+cams.length+' detectada(s)</span>');
+      cams.forEach((c,i)=>L.push('  Cám '+(i+1)+': '+(c.label||'(sin label — permiso requerido)')));
+    }catch{L.push('Cámaras: <span class="d-warn">no enumerables</span>');}
+  }
+  box.innerHTML=L.join('<br>');
+}
+
+// ── ESCÁNER TIEMPO REAL ───────────────────────────────────────
+let camStream=null,camActive=false,rafId=null,lastScan=0;
+
+async function startCam(){
+  if(typeof jsQR==='undefined'){
+    showRes('scan-result','err','❌ La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
+    return;
+  }
+  setStatus('📷 Solicitando acceso a la cámara…','');
+  clearRes('scan-result');
+  const btnS=document.getElementById('btn-start');
+  btnS.disabled=true;
+  const tries=[
+    {video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1280}}},
+    {video:{facingMode:'environment'}},
+    {video:true}
+  ];
+  let stream=null,lastErr=null;
+  for(const c of tries){
+    try{stream=await navigator.mediaDevices.getUserMedia(c);break;}
+    catch(e){lastErr=e;if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError')break;}
+  }
+  if(!stream){
+    btnS.disabled=false;
+    let msg='❌ No se pudo abrir la cámara.';
+    if(lastErr){
+      if(lastErr.name==='NotAllowedError'||lastErr.name==='PermissionDeniedError'){
+        msg='⛔ <b>Permiso denegado.</b><br><br>'
+          +'🔧 Toca el 🔒 en la barra de dirección → Permisos → Cámara → Permitir, y recarga.<br><br>'
+          +'📱 O usa <b>Cámara nativa</b> de abajo ↓';
+      }else{
+        msg='❌ Error: '+lastErr.message+'<br>Prueba el botón <b>Cámara nativa</b> ↓';
+      }
+    }
+    showRes('scan-result','err',msg,null);
+    setStatus('','');
+    return;
+  }
+  camStream=stream; camActive=true;
+  const v=document.getElementById('cam-video');
+  v.addEventListener('loadedmetadata',()=>{
+    v.play().then(()=>{
+      v.style.display='block';
+      document.getElementById('cam-ph').style.display='none';
+      document.getElementById('cam-overlay').style.display='flex';
+      btnS.style.display='none'; btnS.disabled=false;
+      document.getElementById('btn-stop').style.display='flex';
+      setStatus('✅ Cámara activa — enfoca el QR dentro del recuadro','ok');
+      scheduleFrame();
+    }).catch(e=>{btnS.disabled=false;setStatus('❌ Error video: '+e.message,'err');});
+  },{once:true});
+  v.srcObject=stream;
+}
+
+function scheduleFrame(){
+  const v=document.getElementById('cam-video');
+  if('requestVideoFrameCallback' in v){v.requestVideoFrameCallback(tick);}
+  else{rafId=requestAnimationFrame(tick);}
+}
+
+function tick(){
+  if(!camActive)return;
+  const v=document.getElementById('cam-video');
+  const cvs=document.getElementById('cam-canvas');
+  const ctx=cvs.getContext('2d',{willReadFrequently:true});
+  if(v.readyState>=v.HAVE_ENOUGH_DATA&&v.videoWidth>0){
+    cvs.width=v.videoWidth; cvs.height=v.videoHeight;
+    ctx.drawImage(v,0,0);
+    try{
+      const id=ctx.getImageData(0,0,cvs.width,cvs.height);
+      const code=jsQR(id.data,id.width,id.height,{inversionAttempts:'attemptBoth'});
+      if(code&&(Date.now()-lastScan)>2500){
+        lastScan=Date.now();
+        const cod=extractCod(code.data);
+        if(cod){setStatus('✅ QR detectado — código: '+cod,'ok');stopCam();procesarPago(cod,'scan-result',null,'scan');return;}
+        else{setStatus('⚠️ QR leído pero no contiene código válido: '+esc(code.data),'err');}
+      }
+    }catch(e){}
+  }
+  scheduleFrame();
+}
+
+function stopCam(){
+  camActive=false;
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  const v=document.getElementById('cam-video');
+  v.pause();v.srcObject=null;v.style.display='none';
+  document.getElementById('cam-ph').style.display='flex';
+  document.getElementById('cam-overlay').style.display='none';
+  document.getElementById('btn-start').style.display='flex';
+  document.getElementById('btn-start').disabled=false;
+  document.getElementById('btn-stop').style.display='none';
+}
+
+function setStatus(msg,type){
+  const el=document.getElementById('scan-status');
+  el.innerHTML=msg;
+  el.style.color=type==='ok'?'#4ade80':type==='err'?'#f87171':'#94a3b8';
+}
+
+// ── CÁMARA NATIVA (respaldo) ──────────────────────────────────
+function triggerNativeCam(){const i=document.getElementById('inp-native-cam');i.value='';i.click();}
+function triggerNativeGal(){const i=document.getElementById('inp-native-gal');i.value='';i.click();}
+
+function handleNativeQR(e){
+  const file=e.target.files&&e.target.files[0];
+  if(!file)return;
+  clearRes('scan-result');
+  setStatus('📷 Foto recibida. Leyendo QR…','ok');
+  readFileAsImage(file,
+    img=>decodeImageAndPay(img,'scan-result','scan'),
+    ()=>setStatus('❌ No se pudo leer la imagen','err')
+  );
+}
+
+// ── TAB 2: FOTO QR ────────────────────────────────────────────
+let loadedImg=null;
+function triggerCamera(){const i=document.getElementById('file-camera');i.value='';i.click();}
+function triggerGallery(){const i=document.getElementById('file-gallery');i.value='';i.click();}
+
+function handlePhoto(e){
+  const file=e.target.files&&e.target.files[0];
+  if(!file)return;
+  clearRes('photo-result');
+  readFileAsImage(file,
+    img=>{
+      loadedImg=img;
+      document.getElementById('photo-img').src=img.src;
+      document.getElementById('photo-preview-wrap').style.display='block';
+      document.getElementById('upload-zone-wrap').style.display='none';
+      document.getElementById('btn-decode').style.display='flex';
+    },
+    ()=>showRes('photo-result','err','❌ No se pudo leer el archivo o no es una imagen válida.',null)
+  );
+}
+
+function readFileAsImage(file,onOk,onErr){
+  const reader=new FileReader();
+  reader.onerror=()=>onErr();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onerror=()=>onErr();
+    img.onload=()=>onOk(img);
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto(){
+  loadedImg=null;
+  document.getElementById('photo-img').src='';
+  document.getElementById('photo-preview-wrap').style.display='none';
+  document.getElementById('upload-zone-wrap').style.display='block';
+  document.getElementById('btn-decode').style.display='none';
+  document.getElementById('photo-load').style.display='none';
+  clearRes('photo-result');
+}
+
+function decodePhoto(){
+  if(!loadedImg)return;
+  clearRes('photo-result');
+  document.getElementById('photo-load').style.display='flex';
+  document.getElementById('btn-decode').style.display='none';
+  setTimeout(()=>decodeImageAndPay(loadedImg,'photo-result','photo'),80);
+}
+
+// ── DECODER COMPARTIDO (robusto: varios tamaños + inversión + contraste) ──
+function decodeImageAndPay(img,resId,source){
+  if(typeof jsQR==='undefined'){
+    if(source==='photo')document.getElementById('photo-load').style.display='none';
+    showRes(resId,'err','❌ La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
+    if(source==='photo')document.getElementById('btn-decode').style.display='flex';
+    return;
+  }
+  const code=robustDecodeQR(img);
+  if(source==='photo')document.getElementById('photo-load').style.display='none';
+  if(source==='scan')setStatus('','');
+  if(!code){
+    const msg='⚠️ No se detectó el QR.<br><br><b>Consejos:</b><br>• Foto nítida y bien iluminada<br>• El QR debe ocupar gran parte de la imagen<br>• Evita reflejos y sombras';
+    showRes(resId,'err',msg,null);
+    if(source==='photo')document.getElementById('btn-decode').style.display='flex';
+    return;
+  }
+  const cod=extractCod(code.data);
+  if(!cod){
+    showRes(resId,'err','QR leído pero no reconocido:<br><small style="font-family:monospace;word-break:break-all">'+esc(code.data)+'</small>',null);
+    if(source==='photo')document.getElementById('btn-decode').style.display='flex';
+    return;
+  }
+  procesarPago(cod,resId,null,source);
+}
+
+function robustDecodeQR(img){
+  const cvs=document.getElementById('photo-canvas');
+  const ctx=cvs.getContext('2d',{willReadFrequently:true});
+  const baseW=img.naturalWidth||img.width, baseH=img.naturalHeight||img.height;
+  if(!baseW||!baseH)return null;
+  const targets=[1600,2200,1000];
+  for(const MAX of targets){
+    let w=baseW,h=baseH;
+    if(w>=h){h=Math.round((h/w)*MAX);w=MAX;}else{w=Math.round((w/h)*MAX);h=MAX;}
+    cvs.width=w; cvs.height=h;
+    ctx.clearRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    let id=ctx.getImageData(0,0,w,h);
+    let code=jsQR(id.data,w,h,{inversionAttempts:'attemptBoth'});
+    if(code)return code;
+    enhanceContrast(id);
+    code=jsQR(id.data,w,h,{inversionAttempts:'attemptBoth'});
+    if(code)return code;
+  }
+  return null;
+}
+
+function enhanceContrast(imgData){
+  const d=imgData.data,factor=1.6;
+  for(let i=0;i<d.length;i+=4){
+    const gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    let v=(gray-128)*factor+128;
+    v=v<0?0:v>255?255:v;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+}
+
+// ── TAB 3: MANUAL ─────────────────────────────────────────────
+let manTimer=null;
+function onManualInput(){
+  const v=document.getElementById('manual-cod').value.trim();
+  document.getElementById('btn-reg').disabled=v.length<4;
+  clearRes('manual-result');
+  document.getElementById('stu-prev').style.display='none';
+  clearTimeout(manTimer);
+  if(v.length>=4)manTimer=setTimeout(()=>previewStudent(v),700);
+}
+
+async function previewStudent(cod){
+  if(!isValidApiUrl(API_URL)){configurarApiUrl();return;}
+  try{
+    const res=await fetch(API_URL+'?action=getStudent&codigo='+encodeURIComponent(cod));
+    const data=await res.json();
+    const el=document.getElementById('stu-prev');
+    if(!data.found){el.style.display='none';return;}
+    const s=data.student,paid=(String(s.pago).trim()==='Pagó');
+    el.className='stu-preview'+(paid?' paid':'');
+    el.innerHTML='<div class="stu-name">'+esc(s.nombre)+' '+esc(s.apellidos)+'</div>'
+      +'<div class="stu-detail">Código: <b>'+esc(s.codigo)+'</b></div>'
+      +'<div class="stu-detail">'+esc(s.escuela)+'</div>'
+      +'<div class="stu-detail">Lab: '+esc(s.laboratorio)+' &nbsp;·&nbsp; Grupo: '+esc(s.grupo)+'</div>'
+      +'<span class="stu-badge '+(paid?'warn':'ok')+'">'+(paid?'⚠️ Ya tiene pago':'✅ Sin pago previo')+'</span>';
+    el.style.display='block';
+  }catch(e){ /* silencioso: solo es una vista previa */ }
+}
+
+function registrarManual(){
+  const cod=document.getElementById('manual-cod').value.trim();
+  if(!cod)return;
+  clearRes('manual-result');
+  const btn=document.getElementById('btn-reg');btn.disabled=true;
+  const ld=document.getElementById('manual-load');ld.style.display='flex';
+  document.getElementById('manual-load-txt').textContent='Registrando código '+cod+'…';
+  procesarPago(cod,'manual-result',()=>{
+    ld.style.display='none';
+    document.getElementById('manual-cod').value='';
+    document.getElementById('stu-prev').style.display='none';
+    btn.disabled=true;
+  },'manual');
+}
+
+// ── CORE: llamada a la API de Apps Script vía fetch() ──────────
+async function procesarPago(cod,resId,onDone,source){
+  const ld=document.getElementById(source+'-load');
+  if(ld&&source!=='manual')ld.style.display='flex';
+
+  if(!isValidApiUrl(API_URL)){
+    if(ld)ld.style.display='none';
+    showRes(resId,'err','⚙️ No has configurado la URL de tu Apps Script. Toca el engranaje ⚙️ arriba para pegarla.',null);
+    if(onDone)onDone();
+    return;
+  }
+
+  try{
+    const res=await fetch(API_URL+'?action=markPayment&codigo='+encodeURIComponent(String(cod).trim()));
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    if(ld)ld.style.display='none';
+    showRes(resId, data.success?'ok':data.alreadyPaid?'warn':'err', data.message, data.student||null);
+  }catch(err){
+    if(ld)ld.style.display='none';
+    showRes(resId,'err','❌ No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps Script (⚙️), 2) que el despliegue sea "Cualquier usuario", 3) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
+  }
+  if(onDone)onDone();
+}
+
+// ── UTILIDADES ────────────────────────────────────────────────
+function showRes(id,type,msg,student){
+  const el=document.getElementById(id);
+  const ico=type==='ok'?'✅':type==='warn'?'⚠️':'❌';
+  let body='';
+  if(student){
+    body='<hr class="r-divider"><div class="r-body">'
+      +'<b>'+esc(student.nombre)+' '+esc(student.apellidos)+'</b><br>'
+      +'Código: <b>'+esc(student.codigo)+'</b><br>'
+      +esc(student.escuela)+'<br>'
+      +'Lab: '+esc(student.laboratorio)+' &nbsp;·&nbsp; Grupo: '+esc(student.grupo)
+      +'</div>';
+  }
+  el.className='result '+type;
+  el.innerHTML='<div class="r-title">'+ico+' '+msg+'</div>'+body;
+  el.style.display='block';
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function clearRes(id){
+  const el=document.getElementById(id);
+  el.style.display='none';el.innerHTML='';
+}
+
+function extractCod(text){
+  if(!text)return null;
+  const clean=text.trim();
+  try{
+    const url=new URL(clean);
+    let c=url.searchParams.get('codigo');
+    if(c)return c.trim().replace(/\.0$/,'');
+    const hp=new URLSearchParams(url.hash.replace(/^#\/?/,''));
+    c=hp.get('codigo');
+    if(c)return c.trim().replace(/\.0$/,'');
+  }catch(_){}
+  const n=clean.replace(/\.0$/,'');
+  if(/^\d{4,10}$/.test(n))return n;
+  return null;
+}
+
+function esc(str){
+  if(!str)return'';
+  return String(str).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
