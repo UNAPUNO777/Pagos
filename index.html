@@ -212,10 +212,12 @@ canvas{display:none}
 <script>
 // ══════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN: URL de tu Web App de Google Apps Script
-//  (la que termina en /exec). Se guarda en este navegador/celular
-//  con localStorage, así que solo la pides una vez.
+//  (la que termina en /exec). Ya está integrada — si algún día
+//  vuelves a implementar y cambia, toca el engranaje ⚙️ para
+//  actualizarla (se guarda en este navegador).
 // ══════════════════════════════════════════════════════════════
-let API_URL = localStorage.getItem('appscript_api_url') || '';
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbxRJIbUWpLsoaA-QSpTDDoiAciq1Fp60jSRfO_US1g2tav9dJeoSpTp6pIglTO1JQgdqw/exec';
+let API_URL = localStorage.getItem('appscript_api_url') || DEFAULT_API_URL;
 
 function isValidApiUrl(u){
   return !!u && u.indexOf('script.google.com') >= 0 && u.indexOf('/exec') >= 0;
@@ -233,6 +235,51 @@ function configurarApiUrl(){
   API_URL = limpia;
   localStorage.setItem('appscript_api_url', API_URL);
   document.getElementById('cfg-banner').style.display='none';
+}
+
+// ── JSONP: forma de llamar a Apps Script sin toparse con CORS ──
+// Apps Script no agrega cabeceras Access-Control-Allow-Origin a sus
+// respuestas, así que fetch() cross-origin siempre falla con
+// "Failed to fetch". La solución estándar es JSONP: se carga la
+// respuesta como un <script>, que el navegador SÍ permite entre
+// dominios distintos, y Apps Script la envuelve en una llamada a
+// nuestra función de callback.
+function jsonp(url, timeoutMs){
+  return new Promise((resolve, reject)=>{
+    const cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
+    const script = document.createElement('script');
+    let done = false;
+
+    function cleanup(){
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = (data)=>{
+      if(done) return;
+      done = true;
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = ()=>{
+      if(done) return;
+      done = true;
+      cleanup();
+      reject(new Error('No se pudo conectar con el servidor (revisa la URL y tu conexión).'));
+    };
+
+    setTimeout(()=>{
+      if(done) return;
+      done = true;
+      cleanup();
+      reject(new Error('El servidor no respondió a tiempo.'));
+    }, timeoutMs || 15000);
+
+    const sep = url.indexOf('?') >= 0 ? '&' : '?';
+    script.src = url + sep + 'callback=' + cbName;
+    document.body.appendChild(script);
+  });
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
@@ -276,6 +323,14 @@ async function runDiag(){
   }
   L.push('jsQR: <span class="'+(typeof jsQR!=='undefined'?'d-ok':'d-err')+'">'+(typeof jsQR!=='undefined'?'✓ Cargado':'✗ No cargado')+'</span>');
   L.push('API configurada: <span class="'+(isValidApiUrl(API_URL)?'d-ok':'d-err')+'">'+(isValidApiUrl(API_URL)?'✓ Sí':'✗ No — toca ⚙️ arriba')+'</span>');
+  if(isValidApiUrl(API_URL)){
+    try{
+      await jsonp(API_URL+'?action=getStudent&codigo=0', 8000);
+      L.push('Conexión con Apps Script: <span class="d-ok">✓ Responde</span>');
+    }catch(e){
+      L.push('Conexión con Apps Script: <span class="d-err">✗ '+esc(e.message)+'</span>');
+    }
+  }
   if(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices){
     try{
       const devs=await navigator.mediaDevices.enumerateDevices();
@@ -526,8 +581,7 @@ function onManualInput(){
 async function previewStudent(cod){
   if(!isValidApiUrl(API_URL)){configurarApiUrl();return;}
   try{
-    const res=await fetch(API_URL+'?action=getStudent&codigo='+encodeURIComponent(cod));
-    const data=await res.json();
+    const data = await jsonp(API_URL+'?action=getStudent&codigo='+encodeURIComponent(cod), 10000);
     const el=document.getElementById('stu-prev');
     if(!data.found){el.style.display='none';return;}
     const s=data.student,paid=(String(s.pago).trim()==='Pagó');
@@ -556,7 +610,8 @@ function registrarManual(){
   },'manual');
 }
 
-// ── CORE: llamada a la API de Apps Script vía fetch() ──────────
+// ── CORE: llamada a la API de Apps Script vía JSONP ─────────────
+// (JSONP, no fetch: Apps Script no permite fetch() cross-origin)
 async function procesarPago(cod,resId,onDone,source){
   const ld=document.getElementById(source+'-load');
   if(ld&&source!=='manual')ld.style.display='flex';
@@ -569,9 +624,7 @@ async function procesarPago(cod,resId,onDone,source){
   }
 
   try{
-    const res=await fetch(API_URL+'?action=markPayment&codigo='+encodeURIComponent(String(cod).trim()));
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
+    const data = await jsonp(API_URL+'?action=markPayment&codigo='+encodeURIComponent(String(cod).trim()), 15000);
     if(ld)ld.style.display='none';
     showRes(resId, data.success?'ok':data.alreadyPaid?'warn':'err', data.message, data.student||null);
   }catch(err){
