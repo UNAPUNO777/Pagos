@@ -228,10 +228,7 @@ canvas{display:none}
 <canvas id="photo-canvas"></canvas>
 
 <script>
-// ════════════════════════════════════════════════════════════
-//  CONFIGURACIÓN
-// ════════════════════════════════════════════════════════════
-// ⚠️ Mismo Client ID que pusiste en el .gs (GOOGLE_CLIENT_ID)
+
 const GOOGLE_CLIENT_ID = 'PEGA_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
 
 const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbxRJIbUWpLsoaA-QSpTDDoiAciq1Fp60jSRfO_US1g2tav9dJeoSpTp6pIglTO1JQgdqw/exec';
@@ -255,9 +252,7 @@ function configurarApiUrl(){
   document.getElementById('cfg-banner').style.display='none';
 }
 
-// ════════════════════════════════════════════════════════════
-//  SESIÓN CON GOOGLE
-// ════════════════════════════════════════════════════════════
+
 let ID_TOKEN = '';
 let USER_EMAIL = '';
 
@@ -334,9 +329,7 @@ function handleUnauthorized(msg){
 
 function authQS(){ return '&token=' + encodeURIComponent(ID_TOKEN); }
 
-// ════════════════════════════════════════════════════════════
-//  JSONP
-// ════════════════════════════════════════════════════════════
+
 function jsonp(url, timeoutMs){
   return new Promise((resolve, reject)=>{
     const cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
@@ -400,9 +393,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   },1500);
 });
 
-// ════════════════════════════════════════════════════════════
-//  TABS
-// ════════════════════════════════════════════════════════════
+
 function switchTab(n){
   ['scan','photo','manual'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active',x===n);
@@ -411,9 +402,7 @@ function switchTab(n){
   if(n!=='scan')stopCam();
 }
 
-// ════════════════════════════════════════════════════════════
-//  DIAGNÓSTICO
-// ════════════════════════════════════════════════════════════
+
 async function runDiag(){
   const box=document.getElementById('diag-out');
   box.style.display='block'; box.innerHTML='⏳ Verificando…';
@@ -454,9 +443,7 @@ async function runDiag(){
   box.innerHTML=L.join('<br>');
 }
 
-// ════════════════════════════════════════════════════════════
-//  TAB 1: ESCÁNER EN VIVO
-// ════════════════════════════════════════════════════════════
+
 let camStream=null,camActive=false,rafId=null,lastScan=0;
 
 async function startCam(){
@@ -558,9 +545,7 @@ function setStatus(msg,type){
   el.style.color=type==='ok'?'#4ade80':type==='err'?'#f87171':'#94a3b8';
 }
 
-// ════════════════════════════════════════════════════════════
-//  CÁMARA NATIVA / GALERÍA (desde pestaña Escanear)
-// ════════════════════════════════════════════════════════════
+
 function triggerNativeCam(){const i=document.getElementById('inp-native-cam');i.value='';i.click();}
 function triggerNativeGal(){const i=document.getElementById('inp-native-gal');i.value='';i.click();}
 
@@ -575,9 +560,7 @@ function handleNativeQR(e){
   );
 }
 
-// ════════════════════════════════════════════════════════════
-//  TAB 2: FOTO QR
-// ════════════════════════════════════════════════════════════
+
 let loadedImg=null;
 function triggerCamera(){const i=document.getElementById('file-camera');i.value='';i.click();}
 function triggerGallery(){const i=document.getElementById('file-gallery');i.value='';i.click();}
@@ -628,9 +611,7 @@ function decodePhoto(){
   setTimeout(()=>decodeImageAndPay(loadedImg,'photo-result','photo'),80);
 }
 
-// ════════════════════════════════════════════════════════════
-//  DECODIFICACIÓN QR
-// ════════════════════════════════════════════════════════════
+
 function decodeImageAndPay(img,resId,source){
   if(typeof jsQR==='undefined'){
     if(source==='photo')document.getElementById('photo-load').style.display='none';
@@ -688,9 +669,7 @@ function enhanceContrast(imgData){
   }
 }
 
-// ════════════════════════════════════════════════════════════
-//  TAB 3: MANUAL
-// ════════════════════════════════════════════════════════════
+
 let manTimer=null;
 function onManualInput(){
   const v=document.getElementById('manual-cod').value.trim();
@@ -735,9 +714,7 @@ function registrarManual(){
   },'manual');
 }
 
-// ════════════════════════════════════════════════════════════
-//  REGISTRAR PAGO (JSONP + token)
-// ════════════════════════════════════════════════════════════
+
 async function procesarPago(cod,resId,onDone,source){
   const ld=document.getElementById(source+'-load');
   if(ld&&source!=='manual')ld.style.display='flex';
@@ -772,9 +749,7 @@ async function procesarPago(cod,resId,onDone,source){
   if(onDone)onDone();
 }
 
-// ════════════════════════════════════════════════════════════
-//  UI HELPERS
-// ════════════════════════════════════════════════════════════
+
 function showRes(id,type,msg,student){
   const el=document.getElementById(id);
   const ico=type==='ok'?'✅':type==='warn'?'⚠️':'❌';
