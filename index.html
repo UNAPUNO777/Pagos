@@ -629,7 +629,7 @@ async function procesarPago(cod,resId,onDone,source){
     showRes(resId, data.success?'ok':data.alreadyPaid?'warn':'err', data.message, data.student||null);
   }catch(err){
     if(ld)ld.style.display='none';
-    showRes(resId,'err','❌ No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps Script (⚙️), 2) que el despliegue sea "Cualquier usuario", 3) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
+    showRes(resId,'err','❌ No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps  (⚙️), 2) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
   }
   if(onDone)onDone();
 }
