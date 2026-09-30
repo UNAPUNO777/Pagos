@@ -104,6 +104,7 @@ canvas{display:none}
 .login-box p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px}
 #g-btn{display:flex;justify-content:center;min-height:44px}
 #login-msg{margin-top:16px;font-size:13px;color:#f87171;line-height:1.6;min-height:20px}
+.login-wait{display:none;align-items:center;justify-content:center;gap:10px;margin-top:14px;font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -115,6 +116,7 @@ canvas{display:none}
     <h2>Acceso restringido</h2>
     <p>Inicia sesión con tu cuenta de Google institucional para usar el Sistema de Pagos QR.</p>
     <div id="g-btn"></div>
+    <div class="login-wait" id="login-wait"><div class="spinner"></div><span>Verificando cuenta…</span></div>
     <div id="login-msg"></div>
   </div>
 </div>
@@ -228,7 +230,10 @@ canvas{display:none}
 <canvas id="photo-canvas"></canvas>
 
 <script>
-
+// ════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN
+// ════════════════════════════════════════════════════════════
+// Debe ser el mismo Client ID que está en el .gs (GOOGLE_CLIENT_ID)
 const GOOGLE_CLIENT_ID = '841383707798-3mcu0tdeeilmbb0up54v2p49l2dti89u.apps.googleusercontent.com';
 
 const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbxRJIbUWpLsoaA-QSpTDDoiAciq1Fp60jSRfO_US1g2tav9dJeoSpTp6pIglTO1JQgdqw/exec';
@@ -252,7 +257,9 @@ function configurarApiUrl(){
   document.getElementById('cfg-banner').style.display='none';
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  SESIÓN CON GOOGLE
+// ════════════════════════════════════════════════════════════
 let ID_TOKEN = '';
 let USER_EMAIL = '';
 
@@ -277,6 +284,7 @@ function aplicarSesion(token){
   sessionStorage.setItem('pagos_id_token', token);
   document.getElementById('login').style.display='none';
   document.getElementById('login-msg').textContent='';
+  document.getElementById('login-wait').style.display='none';
   document.getElementById('user-line').textContent = USER_EMAIL;
   document.getElementById('btn-logout').style.display='block';
   return true;
@@ -289,6 +297,8 @@ function mostrarLogin(msg){
   document.getElementById('btn-logout').style.display='none';
   document.getElementById('user-line').textContent='Verificación de pagos — UNAP Física';
   document.getElementById('login').style.display='flex';
+  document.getElementById('login-wait').style.display='none';
+  document.getElementById('g-btn').style.display='flex';
   document.getElementById('login-msg').textContent = msg || '';
 }
 
@@ -299,11 +309,26 @@ function logout(){
   mostrarLogin('');
 }
 
-function onGoogleCredential(resp){
-  if(resp && resp.credential && aplicarSesion(resp.credential)){
-    // sesión iniciada; el servidor valida si el correo está autorizado
-  }else{
+// Tras iniciar sesión con Google, el SERVIDOR confirma si el correo está autorizado
+async function onGoogleCredential(resp){
+  if(!(resp && resp.credential)){
     mostrarLogin('No se pudo iniciar sesión. Intenta de nuevo.');
+    return;
+  }
+  const p = decodeJwt(resp.credential);
+  document.getElementById('login-msg').textContent='';
+  document.getElementById('g-btn').style.display='none';
+  document.getElementById('login-wait').style.display='flex';
+  try{
+    const r = await jsonp(API_URL+'?action=check&token='+encodeURIComponent(resp.credential), 15000);
+    if(r && r.authorized){
+      aplicarSesion(resp.credential);
+    }else{
+      if(window.google && google.accounts && google.accounts.id){ google.accounts.id.disableAutoSelect(); }
+      mostrarLogin('🚫 La cuenta ' + (p && p.email ? p.email : '') + ' no está autorizada.');
+    }
+  }catch(e){
+    mostrarLogin('No se pudo conectar con el servidor. Revisa la implementación de Apps Script.');
   }
 }
 
@@ -315,7 +340,7 @@ function initGoogle(){
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: onGoogleCredential,
-    auto_select: true,
+    auto_select: false,
     cancel_on_tap_outside: false
   });
   google.accounts.id.renderButton(document.getElementById('g-btn'),
@@ -329,7 +354,9 @@ function handleUnauthorized(msg){
 
 function authQS(){ return '&token=' + encodeURIComponent(ID_TOKEN); }
 
-
+// ════════════════════════════════════════════════════════════
+//  JSONP
+// ════════════════════════════════════════════════════════════
 function jsonp(url, timeoutMs){
   return new Promise((resolve, reject)=>{
     const cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
@@ -372,7 +399,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!isValidApiUrl(API_URL)){
     document.getElementById('cfg-banner').style.display='block';
   }
-  // Restaurar sesión si el token sigue vigente
+  // Restaurar sesión si el token sigue vigente (solo se guarda tras ser aprobado por el servidor)
   const saved = sessionStorage.getItem('pagos_id_token');
   if(saved){ ID_TOKEN = saved; }
   if(saved && tokenVigente() && aplicarSesion(saved)){
@@ -393,7 +420,9 @@ window.addEventListener('DOMContentLoaded',()=>{
   },1500);
 });
 
-
+// ════════════════════════════════════════════════════════════
+//  TABS
+// ════════════════════════════════════════════════════════════
 function switchTab(n){
   ['scan','photo','manual'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active',x===n);
@@ -402,7 +431,9 @@ function switchTab(n){
   if(n!=='scan')stopCam();
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  DIAGNÓSTICO
+// ════════════════════════════════════════════════════════════
 async function runDiag(){
   const box=document.getElementById('diag-out');
   box.style.display='block'; box.innerHTML='⏳ Verificando…';
@@ -422,11 +453,11 @@ async function runDiag(){
   L.push('API configurada: <span class="'+(isValidApiUrl(API_URL)?'d-ok':'d-err')+'">'+(isValidApiUrl(API_URL)?'✓ Sí':'✗ No — toca ⚙️ arriba')+'</span>');
   if(isValidApiUrl(API_URL)){
     try{
-      const r = await jsonp(API_URL+'?action=getStudent&codigo=0'+authQS(), 8000);
-      if(r && r.unauthorized){
-        L.push('Conexión con Apps Script: <span class="d-warn">✓ Responde, pero tu cuenta no está autorizada o el token venció</span>');
-      }else{
+      const r = await jsonp(API_URL+'?action=check'+authQS(), 8000);
+      if(r && r.authorized){
         L.push('Conexión con Apps Script: <span class="d-ok">✓ Responde y tu cuenta está autorizada</span>');
+      }else{
+        L.push('Conexión con Apps Script: <span class="d-warn">✓ Responde, pero tu cuenta no está autorizada o el token venció</span>');
       }
     }catch(e){
       L.push('Conexión con Apps Script: <span class="d-err">✗ '+esc(e.message)+'</span>');
@@ -443,13 +474,15 @@ async function runDiag(){
   box.innerHTML=L.join('<br>');
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  TAB 1: ESCÁNER EN VIVO
+// ════════════════════════════════════════════════════════════
 let camStream=null,camActive=false,rafId=null,lastScan=0;
 
 async function startCam(){
   if(!tokenVigente()){ mostrarLogin('Tu sesión venció. Inicia sesión de nuevo.'); return; }
   if(typeof jsQR==='undefined'){
-    showRes('scan-result','err','❌ La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
+    showRes('scan-result','err','La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
     return;
   }
   setStatus('📷 Solicitando acceso a la cámara…','');
@@ -468,14 +501,14 @@ async function startCam(){
   }
   if(!stream){
     btnS.disabled=false;
-    let msg='❌ No se pudo abrir la cámara.';
+    let msg='No se pudo abrir la cámara.';
     if(lastErr){
       if(lastErr.name==='NotAllowedError'||lastErr.name==='PermissionDeniedError'){
-        msg='⛔ <b>Permiso denegado.</b><br><br>'
+        msg='<b>Permiso denegado.</b><br><br>'
           +'🔧 Toca el 🔒 en la barra de dirección → Permisos → Cámara → Permitir, y recarga.<br><br>'
           +'📱 O usa <b>Cámara nativa</b> de abajo ↓';
       }else{
-        msg='❌ Error: '+lastErr.message+'<br>Prueba el botón <b>Cámara nativa</b> ↓';
+        msg='Error: '+lastErr.message+'<br>Prueba el botón <b>Cámara nativa</b> ↓';
       }
     }
     showRes('scan-result','err',msg,null);
@@ -545,7 +578,9 @@ function setStatus(msg,type){
   el.style.color=type==='ok'?'#4ade80':type==='err'?'#f87171':'#94a3b8';
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  CÁMARA NATIVA / GALERÍA (desde pestaña Escanear)
+// ════════════════════════════════════════════════════════════
 function triggerNativeCam(){const i=document.getElementById('inp-native-cam');i.value='';i.click();}
 function triggerNativeGal(){const i=document.getElementById('inp-native-gal');i.value='';i.click();}
 
@@ -560,7 +595,9 @@ function handleNativeQR(e){
   );
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  TAB 2: FOTO QR
+// ════════════════════════════════════════════════════════════
 let loadedImg=null;
 function triggerCamera(){const i=document.getElementById('file-camera');i.value='';i.click();}
 function triggerGallery(){const i=document.getElementById('file-gallery');i.value='';i.click();}
@@ -577,7 +614,7 @@ function handlePhoto(e){
       document.getElementById('upload-zone-wrap').style.display='none';
       document.getElementById('btn-decode').style.display='flex';
     },
-    ()=>showRes('photo-result','err','❌ No se pudo leer el archivo o no es una imagen válida.',null)
+    ()=>showRes('photo-result','err','No se pudo leer el archivo o no es una imagen válida.',null)
   );
 }
 
@@ -611,11 +648,13 @@ function decodePhoto(){
   setTimeout(()=>decodeImageAndPay(loadedImg,'photo-result','photo'),80);
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  DECODIFICACIÓN QR
+// ════════════════════════════════════════════════════════════
 function decodeImageAndPay(img,resId,source){
   if(typeof jsQR==='undefined'){
     if(source==='photo')document.getElementById('photo-load').style.display='none';
-    showRes(resId,'err','❌ La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
+    showRes(resId,'err','La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
     if(source==='photo')document.getElementById('btn-decode').style.display='flex';
     return;
   }
@@ -623,7 +662,7 @@ function decodeImageAndPay(img,resId,source){
   if(source==='photo')document.getElementById('photo-load').style.display='none';
   if(source==='scan')setStatus('','');
   if(!code){
-    const msg='⚠️ No se detectó el QR.<br><br><b>Consejos:</b><br>• Foto nítida y bien iluminada<br>• El QR debe ocupar gran parte de la imagen<br>• Evita reflejos y sombras';
+    const msg='No se detectó el QR.<br><br><b>Consejos:</b><br>• Foto nítida y bien iluminada<br>• El QR debe ocupar gran parte de la imagen<br>• Evita reflejos y sombras';
     showRes(resId,'err',msg,null);
     if(source==='photo')document.getElementById('btn-decode').style.display='flex';
     return;
@@ -669,7 +708,9 @@ function enhanceContrast(imgData){
   }
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  TAB 3: MANUAL
+// ════════════════════════════════════════════════════════════
 let manTimer=null;
 function onManualInput(){
   const v=document.getElementById('manual-cod').value.trim();
@@ -714,7 +755,9 @@ function registrarManual(){
   },'manual');
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  REGISTRAR PAGO (JSONP + token)
+// ════════════════════════════════════════════════════════════
 async function procesarPago(cod,resId,onDone,source){
   const ld=document.getElementById(source+'-load');
   if(ld&&source!=='manual')ld.style.display='flex';
@@ -744,15 +787,19 @@ async function procesarPago(cod,resId,onDone,source){
     showRes(resId, data.success?'ok':data.alreadyPaid?'warn':'err', data.message, data.student||null);
   }catch(err){
     if(ld)ld.style.display='none';
-    showRes(resId,'err','❌ No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps Script (⚙️), 2) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
+    showRes(resId,'err','No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps Script (⚙️), 2) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
   }
   if(onDone)onDone();
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ════════════════════════════════════════════════════════════
 function showRes(id,type,msg,student){
   const el=document.getElementById(id);
   const ico=type==='ok'?'✅':type==='warn'?'⚠️':'❌';
+  // evita íconos duplicados si el mensaje ya empieza con uno
+  msg = String(msg||'').replace(/^(✅|⚠️|❌|🚫)\s*/,'');
   let body='';
   if(student){
     body='<hr class="r-divider"><div class="r-body">'
