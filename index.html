@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"
         onerror="this.onerror=null;this.src='https://unpkg.com/jsqr@1.4.0/dist/jsQR.js';"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{--bg:#0f172a;--surface:#1e293b;--surface2:#273548;--border:#334155;--blue:#3b82f6;--blue-glow:#3b82f640;--green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--text:#f1f5f9;--muted:#94a3b8;--radius:14px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -16,7 +17,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .header-icon{font-size:28px}
 .header h1{font-size:17px;font-weight:700}
 .header p{font-size:12px;color:#93c5fd;margin-top:1px}
-.header-gear{margin-left:auto;font-size:20px;cursor:pointer;background:none;border:none;color:#93c5fd;-webkit-tap-highlight-color:transparent}
+.header-gear{margin-left:auto;font-size:20px;cursor:pointer;background:none;border:none;color:#93c5fd;-webkit-tap-highlight-color:transparent;z-index:1}
+.header-out{font-size:11px;font-weight:700;cursor:pointer;background:#ffffff18;border:none;color:#e0f2fe;border-radius:8px;padding:6px 10px;z-index:1}
 .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
 .tab{flex:1;padding:12px 4px;text-align:center;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;letter-spacing:.5px;text-transform:uppercase;-webkit-tap-highlight-color:transparent}
 .tab .ico{font-size:20px}
@@ -89,27 +91,46 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .loading-box{display:none;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:10px;margin-top:12px;color:var(--muted);font-size:13px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-.info-box{background:#1e293b;border:1px solid #334155;border-left:4px solid var(--blue);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px}
-.info-box b{color:var(--text)}
 .diag-box{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px;color:var(--muted);margin-top:10px;line-height:1.9;font-family:'Space Mono',monospace;word-break:break-all}
 .d-ok{color:#4ade80}.d-err{color:#f87171}.d-warn{color:#fbbf24}
 .top-banner{display:none;background:#7f1d1d;color:#fecaca;font-size:12px;padding:10px 16px;text-align:center;line-height:1.6;cursor:pointer}
 canvas{display:none}
+
+/* ── Pantalla de inicio de sesión ── */
+#login{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 24px;max-width:380px;width:100%;text-align:center}
+.login-box .l-ico{font-size:52px;margin-bottom:10px}
+.login-box h2{font-size:18px;margin-bottom:8px}
+.login-box p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px}
+#g-btn{display:flex;justify-content:center;min-height:44px}
+#login-msg{margin-top:16px;font-size:13px;color:#f87171;line-height:1.6;min-height:20px}
 </style>
 </head>
 <body>
 
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <div class="l-ico">🔐</div>
+    <h2>Acceso restringido</h2>
+    <p>Inicia sesión con tu cuenta de Google institucional para usar el Sistema de Pagos QR.</p>
+    <div id="g-btn"></div>
+    <div id="login-msg"></div>
+  </div>
+</div>
+
 <div class="top-banner" id="cfg-banner" onclick="configurarApiUrl()">
-  ⚙️ No hay URL de app  configurada. Toca aquí para pegarla.
+  ⚙️ No hay URL de app configurada. Toca aquí para pegarla.
 </div>
 
 <div class="header">
   <div class="header-icon">🎓</div>
   <div>
     <h1>Sistema de Pagos QR</h1>
-    <p>Verificación de pagos — UNAP Física</p>
+    <p id="user-line">Verificación de pagos — UNAP Física</p>
   </div>
   <button class="header-gear" onclick="configurarApiUrl()" title="Configurar URL del servidor">⚙️</button>
+  <button class="header-out" id="btn-logout" onclick="logout()" style="display:none">Salir</button>
 </div>
 
 <div class="tabs">
@@ -120,7 +141,7 @@ canvas{display:none}
 
 <div class="content">
 
-<!-- TAB 1: ESCANEAR  -->
+<!-- TAB 1: ESCANEAR -->
 <div id="panel-scan" class="panel active">
   <div class="card">
     <div class="card-title">📷 Escáner en Tiempo Real</div>
@@ -143,7 +164,6 @@ canvas{display:none}
     <button class="btn btn-blue" id="btn-start" onclick="startCam()">📷 Iniciar Escáner</button>
     <button class="btn btn-stop" id="btn-stop"  onclick="stopCam()" style="display:none">⏹ Detener Escáner</button>
 
-    
     <div class="alt-method">
       <div class="alt-method-title">📱 Si la cámara no abre — usa esto:</div>
       <div class="alt-desc">Abre la <b>cámara nativa</b> de tu celular o elige una foto de la galería.</div>
@@ -162,7 +182,7 @@ canvas{display:none}
   <div id="scan-result" class="result"></div>
 </div>
 
-
+<!-- TAB 2: FOTO QR -->
 <div id="panel-photo" class="panel">
   <div class="card">
     <div class="card-title">🖼️ Verificar con Foto del QR</div>
@@ -188,7 +208,7 @@ canvas{display:none}
   <div id="photo-result" class="result"></div>
 </div>
 
-
+<!-- TAB 3: MANUAL -->
 <div id="panel-manual" class="panel">
   <div class="card">
     <div class="card-title">⌨️ Registro Manual</div>
@@ -208,6 +228,11 @@ canvas{display:none}
 <canvas id="photo-canvas"></canvas>
 
 <script>
+// ════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN
+// ════════════════════════════════════════════════════════════
+// ⚠️ Mismo Client ID que pusiste en el .gs (GOOGLE_CLIENT_ID)
+const GOOGLE_CLIENT_ID = 'PEGA_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
 
 const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbxRJIbUWpLsoaA-QSpTDDoiAciq1Fp60jSRfO_US1g2tav9dJeoSpTp6pIglTO1JQgdqw/exec';
 let API_URL = localStorage.getItem('appscript_api_url') || DEFAULT_API_URL;
@@ -230,7 +255,88 @@ function configurarApiUrl(){
   document.getElementById('cfg-banner').style.display='none';
 }
 
+// ════════════════════════════════════════════════════════════
+//  SESIÓN CON GOOGLE
+// ════════════════════════════════════════════════════════════
+let ID_TOKEN = '';
+let USER_EMAIL = '';
 
+function decodeJwt(t){
+  try{
+    const p = t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(escape(atob(p))));
+  }catch(_){ return null; }
+}
+
+function tokenVigente(){
+  if(!ID_TOKEN) return false;
+  const p = decodeJwt(ID_TOKEN);
+  return !!(p && p.exp && (p.exp*1000) > (Date.now()+60000));
+}
+
+function aplicarSesion(token){
+  const p = decodeJwt(token);
+  if(!p || !p.email) return false;
+  ID_TOKEN = token;
+  USER_EMAIL = p.email;
+  sessionStorage.setItem('pagos_id_token', token);
+  document.getElementById('login').style.display='none';
+  document.getElementById('login-msg').textContent='';
+  document.getElementById('user-line').textContent = USER_EMAIL;
+  document.getElementById('btn-logout').style.display='block';
+  return true;
+}
+
+function mostrarLogin(msg){
+  stopCam();
+  ID_TOKEN=''; USER_EMAIL='';
+  sessionStorage.removeItem('pagos_id_token');
+  document.getElementById('btn-logout').style.display='none';
+  document.getElementById('user-line').textContent='Verificación de pagos — UNAP Física';
+  document.getElementById('login').style.display='flex';
+  document.getElementById('login-msg').textContent = msg || '';
+}
+
+function logout(){
+  if(window.google && google.accounts && google.accounts.id){
+    google.accounts.id.disableAutoSelect();
+  }
+  mostrarLogin('');
+}
+
+function onGoogleCredential(resp){
+  if(resp && resp.credential && aplicarSesion(resp.credential)){
+    // sesión iniciada; el servidor valida si el correo está autorizado
+  }else{
+    mostrarLogin('No se pudo iniciar sesión. Intenta de nuevo.');
+  }
+}
+
+function initGoogle(){
+  if(!(window.google && google.accounts && google.accounts.id)){
+    setTimeout(initGoogle, 300);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: onGoogleCredential,
+    auto_select: true,
+    cancel_on_tap_outside: false
+  });
+  google.accounts.id.renderButton(document.getElementById('g-btn'),
+    {theme:'filled_blue', size:'large', text:'signin_with', shape:'pill', locale:'es'});
+}
+
+// Cuando el servidor rechaza el token (vencido o correo no autorizado)
+function handleUnauthorized(msg){
+  mostrarLogin(msg || '🚫 Acceso denegado. Usa una cuenta autorizada.');
+}
+
+function authQS(){ return '&token=' + encodeURIComponent(ID_TOKEN); }
+
+// ════════════════════════════════════════════════════════════
+//  JSONP
+// ════════════════════════════════════════════════════════════
 function jsonp(url, timeoutMs){
   return new Promise((resolve, reject)=>{
     const cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
@@ -273,18 +379,30 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!isValidApiUrl(API_URL)){
     document.getElementById('cfg-banner').style.display='block';
   }
+  // Restaurar sesión si el token sigue vigente
+  const saved = sessionStorage.getItem('pagos_id_token');
+  if(saved){ ID_TOKEN = saved; }
+  if(saved && tokenVigente() && aplicarSesion(saved)){
+    /* sesión restaurada */
+  }else{
+    mostrarLogin('');
+  }
+  initGoogle();
+
   setTimeout(()=>{
     if(typeof jsQR==='undefined'){
       const b=document.createElement('div');
       b.className='top-banner';
       b.style.display='block';
-      b.textContent='⚠️ No se pudo cargar la librería de lectura de QR . Verifica tu conexión a internet.';
+      b.textContent='⚠️ No se pudo cargar la librería de lectura de QR. Verifica tu conexión a internet.';
       document.body.insertBefore(b, document.body.firstChild);
     }
   },1500);
 });
 
-
+// ════════════════════════════════════════════════════════════
+//  TABS
+// ════════════════════════════════════════════════════════════
 function switchTab(n){
   ['scan','photo','manual'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active',x===n);
@@ -293,7 +411,9 @@ function switchTab(n){
   if(n!=='scan')stopCam();
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  DIAGNÓSTICO
+// ════════════════════════════════════════════════════════════
 async function runDiag(){
   const box=document.getElementById('diag-out');
   box.style.display='block'; box.innerHTML='⏳ Verificando…';
@@ -309,11 +429,16 @@ async function runDiag(){
     catch{L.push('Permiso cámara: <span class="d-warn">no consultable</span>');}
   }
   L.push('jsQR: <span class="'+(typeof jsQR!=='undefined'?'d-ok':'d-err')+'">'+(typeof jsQR!=='undefined'?'✓ Cargado':'✗ No cargado')+'</span>');
+  L.push('Sesión Google: <span class="'+(tokenVigente()?'d-ok':'d-err')+'">'+(tokenVigente()?'✓ '+esc(USER_EMAIL):'✗ Sin sesión')+'</span>');
   L.push('API configurada: <span class="'+(isValidApiUrl(API_URL)?'d-ok':'d-err')+'">'+(isValidApiUrl(API_URL)?'✓ Sí':'✗ No — toca ⚙️ arriba')+'</span>');
   if(isValidApiUrl(API_URL)){
     try{
-      await jsonp(API_URL+'?action=getStudent&codigo=0', 8000);
-      L.push('Conexión con Apps Script: <span class="d-ok">✓ Responde</span>');
+      const r = await jsonp(API_URL+'?action=getStudent&codigo=0'+authQS(), 8000);
+      if(r && r.unauthorized){
+        L.push('Conexión con Apps Script: <span class="d-warn">✓ Responde, pero tu cuenta no está autorizada o el token venció</span>');
+      }else{
+        L.push('Conexión con Apps Script: <span class="d-ok">✓ Responde y tu cuenta está autorizada</span>');
+      }
     }catch(e){
       L.push('Conexión con Apps Script: <span class="d-err">✗ '+esc(e.message)+'</span>');
     }
@@ -329,10 +454,13 @@ async function runDiag(){
   box.innerHTML=L.join('<br>');
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  TAB 1: ESCÁNER EN VIVO
+// ════════════════════════════════════════════════════════════
 let camStream=null,camActive=false,rafId=null,lastScan=0;
 
 async function startCam(){
+  if(!tokenVigente()){ mostrarLogin('Tu sesión venció. Inicia sesión de nuevo.'); return; }
   if(typeof jsQR==='undefined'){
     showRes('scan-result','err','❌ La librería de lectura de QR no cargó. Revisa tu conexión a internet.',null);
     return;
@@ -430,7 +558,9 @@ function setStatus(msg,type){
   el.style.color=type==='ok'?'#4ade80':type==='err'?'#f87171':'#94a3b8';
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  CÁMARA NATIVA / GALERÍA (desde pestaña Escanear)
+// ════════════════════════════════════════════════════════════
 function triggerNativeCam(){const i=document.getElementById('inp-native-cam');i.value='';i.click();}
 function triggerNativeGal(){const i=document.getElementById('inp-native-gal');i.value='';i.click();}
 
@@ -445,7 +575,9 @@ function handleNativeQR(e){
   );
 }
 
-// ── TAB 2: FOTO QR ────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+//  TAB 2: FOTO QR
+// ════════════════════════════════════════════════════════════
 let loadedImg=null;
 function triggerCamera(){const i=document.getElementById('file-camera');i.value='';i.click();}
 function triggerGallery(){const i=document.getElementById('file-gallery');i.value='';i.click();}
@@ -496,7 +628,9 @@ function decodePhoto(){
   setTimeout(()=>decodeImageAndPay(loadedImg,'photo-result','photo'),80);
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  DECODIFICACIÓN QR
+// ════════════════════════════════════════════════════════════
 function decodeImageAndPay(img,resId,source){
   if(typeof jsQR==='undefined'){
     if(source==='photo')document.getElementById('photo-load').style.display='none';
@@ -554,7 +688,9 @@ function enhanceContrast(imgData){
   }
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  TAB 3: MANUAL
+// ════════════════════════════════════════════════════════════
 let manTimer=null;
 function onManualInput(){
   const v=document.getElementById('manual-cod').value.trim();
@@ -567,8 +703,10 @@ function onManualInput(){
 
 async function previewStudent(cod){
   if(!isValidApiUrl(API_URL)){configurarApiUrl();return;}
+  if(!tokenVigente())return;
   try{
-    const data = await jsonp(API_URL+'?action=getStudent&codigo='+encodeURIComponent(cod), 10000);
+    const data = await jsonp(API_URL+'?action=getStudent&codigo='+encodeURIComponent(cod)+authQS(), 10000);
+    if(data && data.unauthorized){ handleUnauthorized(data.message); return; }
     const el=document.getElementById('stu-prev');
     if(!data.found){el.style.display='none';return;}
     const s=data.student,paid=(String(s.pago).trim()==='Pagó');
@@ -597,7 +735,9 @@ function registrarManual(){
   },'manual');
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  REGISTRAR PAGO (JSONP + token)
+// ════════════════════════════════════════════════════════════
 async function procesarPago(cod,resId,onDone,source){
   const ld=document.getElementById(source+'-load');
   if(ld&&source!=='manual')ld.style.display='flex';
@@ -609,18 +749,32 @@ async function procesarPago(cod,resId,onDone,source){
     return;
   }
 
-  try{
-    const data = await jsonp(API_URL+'?action=markPayment&codigo='+encodeURIComponent(String(cod).trim()), 15000);
+  if(!tokenVigente()){
     if(ld)ld.style.display='none';
+    if(onDone)onDone();
+    mostrarLogin('Tu sesión venció. Inicia sesión de nuevo.');
+    return;
+  }
+
+  try{
+    const data = await jsonp(API_URL+'?action=markPayment&codigo='+encodeURIComponent(String(cod).trim())+authQS(), 15000);
+    if(ld)ld.style.display='none';
+    if(data && data.unauthorized){
+      if(onDone)onDone();
+      handleUnauthorized(data.message);
+      return;
+    }
     showRes(resId, data.success?'ok':data.alreadyPaid?'warn':'err', data.message, data.student||null);
   }catch(err){
     if(ld)ld.style.display='none';
-    showRes(resId,'err','❌ No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps  (⚙️), 2) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
+    showRes(resId,'err','❌ No se pudo conectar con el servidor. Verifica: 1) tu URL de Apps Script (⚙️), 2) tu conexión a internet.<br><small>'+esc(err.message)+'</small>',null);
   }
   if(onDone)onDone();
 }
 
-
+// ════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ════════════════════════════════════════════════════════════
 function showRes(id,type,msg,student){
   const el=document.getElementById(id);
   const ico=type==='ok'?'✅':type==='warn'?'⚠️':'❌';
